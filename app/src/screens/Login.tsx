@@ -7,22 +7,24 @@
 */
 
 import 'react-native-get-random-values';
+// import Register from './Register'; // removed because not used
 
+import bcrypt from 'bcryptjs';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
-import { useRouter } from 'expo-router';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -68,20 +70,27 @@ const Login: React.FC = () => {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password: String(password),
-      });
+      // Buscar usuario en tabla 'users'
+      const { data: users, error: fetchError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email.trim().toLowerCase())
+        .single();
 
-      if (error) {
-        // supabase puede regresar errores como PostgrestError o auth error
-        throw error;
+      if (fetchError || !users) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      // Comparar contraseña hasheada
+      const passwordMatch = await bcrypt.compare(password, users.password);
+      if (!passwordMatch) {
+        throw new Error('Contraseña incorrecta');
       }
 
       // login exitoso
       Alert.alert('Success', 'Signed in successfully');
       // Redirigir a la pantalla principal (ajusta la ruta según tu app)
-      router.push('/home');
+      router.push('/Main' as any);
     } catch (e: any) {
       const message = e?.message || 'Unknown error';
       console.error('Login failed:', e);
@@ -93,7 +102,7 @@ const Login: React.FC = () => {
 
   const goToRegister = () => {
     // Ajusta la ruta si tu archivo de register está en otra ruta
-    router.push('/Register');
+      router.push('/register' as any);
   };
 
   return (
@@ -157,7 +166,7 @@ const Login: React.FC = () => {
 
           <View style={{ marginTop: 12, alignItems: 'center' }}>
             <Text style={styles.helper}>
-              Don't have an account?{' '}
+              {"Don't have an account? "}
               <Text style={styles.link} onPress={goToRegister}>
                 Sign up
               </Text>
